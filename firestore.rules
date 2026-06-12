@@ -1,0 +1,115 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Global Safety Net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+    
+    // Global Helpers
+    function isSignedIn() {
+      return request.auth != null && request.auth.token.email.endsWith('@pnu.ac.th');
+    }
+    
+    function getUserData() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+    
+    function isHR_ADMIN() {
+      return isSignedIn() && (
+        request.auth.token.email == 'sopawan.n@pnu.ac.th' ||
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && (
+          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'HR_ADMIN' ||
+          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'hr'
+        ))
+      );
+    }
+    
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    match /users/{userId} {
+      allow read: if isSignedIn() && (isOwner(userId) || isHR_ADMIN());
+      allow write: if isSignedIn() && (isOwner(userId) || isHR_ADMIN());
+    }
+
+    match /attendance/{attendanceId} {
+      allow read: if isSignedIn() && (resource.data.userId == request.auth.uid || isHR_ADMIN());
+      allow create: if isSignedIn() && (request.resource.data.userId == request.auth.uid || isHR_ADMIN());
+      allow update: if isSignedIn() && (resource.data.userId == request.auth.uid || isHR_ADMIN());
+      allow delete: if isHR_ADMIN();
+    }
+
+    match /leaveRequests/{leaveRequestId} {
+      allow read: if isSignedIn() && (resource.data.userId == request.auth.uid || isHR_ADMIN());
+      allow create: if isSignedIn() && (request.resource.data.userId == request.auth.uid || isHR_ADMIN());
+      allow update: if isSignedIn() && (resource.data.userId == request.auth.uid || isHR_ADMIN());
+      allow delete: if isHR_ADMIN();
+    }
+
+    function isValidEmployee(data) {
+      return data.keys().hasAll(['employeeId', 'fullName', 'email', 'department', 'plannedSessions', 'active', 'createdAt']) &&
+             data.keys().size() == 7 &&
+             data.employeeId is string && data.employeeId.size() > 0 && data.employeeId.size() <= 100 &&
+             data.fullName is string && data.fullName.size() > 0 && data.fullName.size() <= 200 &&
+             data.email is string && data.email.endsWith('@pnu.ac.th') &&
+             data.department is string && data.department.size() > 0 &&
+             data.plannedSessions is number && data.plannedSessions > 0 &&
+             data.active is bool &&
+             data.createdAt is string;
+    }
+
+    match /employees/{employeeDocId} {
+      allow read: if isSignedIn() && (isHR_ADMIN() || (resource != null && resource.data.email == request.auth.token.email));
+      allow create, update: if isHR_ADMIN() && isValidEmployee(request.resource.data);
+      allow delete: if isHR_ADMIN();
+    }
+
+    function isValidAttendanceRecord(data) {
+      return data.keys().hasAll(['attendanceId', 'employeeId', 'attendanceDate', 'status', 'workingHours', 'score', 'createdAt', 'updatedAt']) &&
+             data.keys().size() == 8 &&
+             data.attendanceId is string && data.attendanceId.size() > 0 && data.attendanceId.size() <= 100 &&
+             data.employeeId is string && data.employeeId.size() > 0 && data.employeeId.size() <= 100 &&
+             data.attendanceDate is string && data.attendanceDate.size() <= 20 &&
+             data.status in ['Present', 'Absent', 'Leave', 'Sick', 'Holiday'] &&
+             data.workingHours is number && data.workingHours >= 0 &&
+             data.score is number && data.score >= 0 && data.score <= 100 &&
+             data.createdAt is string &&
+             data.updatedAt is string;
+    }
+
+    match /attendance_records/{attendanceId} {
+      allow read: if isSignedIn() && (
+        isHR_ADMIN() || 
+        (resource != null && get(/databases/$(database)/documents/employees/$(resource.data.employeeId)).data.email == request.auth.token.email)
+      );
+      allow create, update: if isHR_ADMIN() && isValidAttendanceRecord(request.resource.data);
+      allow delete: if isHR_ADMIN();
+    }
+
+    function isValidOverrideLog(data) {
+      return data.keys().hasAll(['id', 'attendanceId', 'employeeId', 'oldValue', 'newValue', 'reason', 'editedBy', 'editedAt']) &&
+             data.keys().size() == 8 &&
+             data.id is string && data.id.size() > 0 && data.id.size() <= 100 &&
+             data.attendanceId is string && data.attendanceId.size() > 0 && data.attendanceId.size() <= 100 &&
+             data.employeeId is string && data.employeeId.size() > 0 && data.employeeId.size() <= 100 &&
+             data.oldValue is string && data.oldValue.size() <= 500 &&
+             data.newValue is string && data.newValue.size() <= 500 &&
+             data.reason is string && data.reason.size() > 0 && data.reason.size() <= 1000 &&
+             data.editedBy is string && data.editedBy.size() > 0 && data.editedBy.size() <= 200 &&
+             data.editedAt is string;
+    }
+
+    match /override_logs/{logId} {
+      allow read: if isHR_ADMIN();
+      allow create: if isHR_ADMIN() && isValidOverrideLog(request.resource.data);
+      allow update, delete: if false;
+    }
+  }
+}

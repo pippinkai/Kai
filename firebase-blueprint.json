@@ -1,0 +1,131 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "User profile with role assignment for attendance tracking.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "description": "Unique identifier for the user" },
+        "email": { "type": "string", "description": "University email address of the authenticated G-Suite user" },
+        "displayName": { "type": "string", "description": "Full display name of the user" },
+        "role": { "type": "string", "enum": ["HR_ADMIN", "STAFF"], "description": "System role (HR_ADMIN or STAFF)" },
+        "createdAt": { "type": "string", "description": "ISO timestamp when the user profile was created" },
+        "lastLogin": { "type": "string", "description": "ISO timestamp when the user last logged in" }
+      },
+      "required": ["uid", "email", "role"]
+    },
+    "Attendance": {
+      "title": "Attendance",
+      "description": "Daily check-in and check-out logs.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "userName": { "type": "string" },
+        "email": { "type": "string" },
+        "date": { "type": "string", "format": "date" },
+        "checkIn": { "type": "string" },
+        "checkOut": { "type": "string" },
+        "status": { "type": "string", "enum": ["present", "late", "half-day", "absent", "on-leave"] },
+        "checkInLocation": { "type": "string" },
+        "checkOutLocation": { "type": "string" },
+        "remarks": { "type": "string" },
+        "workNotes": { "type": "string" }
+      },
+      "required": ["id", "userId", "userName", "email", "date", "checkIn", "status"]
+    },
+    "LeaveRequest": {
+      "title": "LeaveRequest",
+      "description": "Staff leave applications reviewed by HR.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "userName": { "type": "string" },
+        "email": { "type": "string" },
+        "leaveType": { "type": "string", "enum": ["sick", "vacation", "business", "maternity"] },
+        "startDate": { "type": "string", "format": "date" },
+        "endDate": { "type": "string", "format": "date" },
+        "reason": { "type": "string" },
+        "status": { "type": "string", "enum": ["pending", "approved", "rejected"] },
+        "createdAt": { "type": "string" },
+        "reviewedBy": { "type": "string" },
+        "reviewedAt": { "type": "string" }
+      },
+      "required": ["id", "userId", "userName", "email", "leaveType", "startDate", "endDate", "reason", "status", "createdAt"]
+    },
+    "Employee": {
+      "title": "Employee",
+      "description": "Employee management details maintained by HR admins.",
+      "type": "object",
+      "properties": {
+        "employeeId": { "type": "string", "description": "Unique identifier for the employee, like PNU-XXX" },
+        "fullName": { "type": "string", "description": "Full name of the employee" },
+        "email": { "type": "string", "description": "Faculty email ending with @pnu.ac.th" },
+        "department": { "type": "string", "description": "Department name, e.g. English & Linguistics" },
+        "plannedSessions": { "type": "integer", "description": "Number of planned teaching/working sessions, must be > 0" },
+        "active": { "type": "boolean", "description": "Active status filter" },
+        "createdAt": { "type": "string", "description": "ISO timestamp of record creation" }
+      },
+      "required": ["employeeId", "fullName", "email", "department", "plannedSessions", "active", "createdAt"]
+    },
+    "AttendanceRecordNew": {
+      "title": "AttendanceRecordNew",
+      "description": "Daily attendance log with rating score.",
+      "type": "object",
+      "properties": {
+        "attendanceId": { "type": "string" },
+        "employeeId": { "type": "string" },
+        "attendanceDate": { "type": "string", "format": "date" },
+        "status": { "type": "string", "enum": ["Present", "Absent", "Leave", "Sick", "Holiday"] },
+        "workingHours": { "type": "number" },
+        "score": { "type": "number" },
+        "createdAt": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["attendanceId", "employeeId", "attendanceDate", "status", "workingHours", "score", "createdAt", "updatedAt"]
+    },
+    "OverrideLog": {
+      "title": "OverrideLog",
+      "description": "Manual override audit trail of attendance record updates, restricted to HR_ADMIN.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "attendanceId": { "type": "string" },
+        "employeeId": { "type": "string" },
+        "oldValue": { "type": "string" },
+        "newValue": { "type": "string" },
+        "reason": { "type": "string" },
+        "editedBy": { "type": "string" },
+        "editedAt": { "type": "string" }
+      },
+      "required": ["id", "attendanceId", "employeeId", "oldValue", "newValue", "reason", "editedBy", "editedAt"]
+    }
+  },
+  "firestore": {
+    "users/{userId}": {
+      "schema": "User",
+      "description": "User profiles by UID"
+    },
+    "attendance/{attendanceId}": {
+      "schema": "Attendance",
+      "description": "Attendance history of all staff members"
+    },
+    "leaveRequests/{leaveRequestId}": {
+      "schema": "LeaveRequest",
+      "description": "Leave requests submitted by staff"
+    },
+    "employees/{employeeId}": {
+      "schema": "Employee",
+      "description": "Staff employee profile records managed by HR"
+    },
+    "attendance_records/{attendanceId}": {
+      "schema": "AttendanceRecordNew",
+      "description": "The newly requested attendance management collection with automatic score calculations"
+    },
+    "override_logs/{logId}": {
+      "schema": "OverrideLog",
+      "description": "Manual override logs recorded when attendance record is edited"
+    }
+  }
+}

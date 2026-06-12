@@ -1,0 +1,6 @@
+{
+  "name": "Faculty of Liberal Arts Attendance Monitoring System",
+  "description": "A comprehensive attendance tracking and reporting system for staff and human resources in the Faculty of Liberal Arts.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
